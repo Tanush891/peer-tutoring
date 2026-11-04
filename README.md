@@ -12,12 +12,17 @@ Role assigned:
 Day1 : backend API 
 Files required Main.py , functions.py , tutors.db libraries needed: FastAPI +SQLite
 Tanush.k : last 5 end points
+
 Abrar : first 5 end points 
+
 Tables : Tutors, sessions
 subject must be one of: maths, physics, chemistry, programming, electronics. status is one of: requested, accepted, rejected, completed.
 Day2: Frontend 
 FindTutor.jsx, MySession.jsx, Tutordesk.jsx in src/components and app.jsx in src 
+
+
 Abrar: FindTutor.jsx and app.jsx
+
 Tanush.k:  Mysession.jsx Tutordesk.jsx
 
 
