@@ -18,6 +18,7 @@ class tutors(Base):
 class sessions(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True)
+    subject_id = (Integer, unique=true )
     tutor_id = Column(Integer)
     student_roll_no = Column(Integer)
     topic = Column(String)
@@ -36,6 +37,7 @@ def add_tutor(name, roll_no, subject, availability):
 def get_tutors():
     session = Session(engine)
     return session.query(tutors).all()   
+    
 
 def get_all_tutors():
     session = Session(engine)
