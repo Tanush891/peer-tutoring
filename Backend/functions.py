@@ -27,19 +27,35 @@ class sessions(Base):
 
 Base.metadata.create_all(engine)
 
-def add_tutor(name, roll_no, subject, availability):
+def add_tutor(name, roll_no, subject, availability="available"):
     with Session(engine) as session:
         new_tutor = tutors(name=name, roll_no=roll_no, subject=subject, availability=availability)
         session.add(new_tutor)
         session.commit()   
 
-def get_tutors():
-    session = Session(engine)
-    return session.query(tutors).all()   
+def get_tutors(subject=None):
+    with Session(engine) as session:
+        query = session.query(tutors)
 
-def get_all_tutors():
+        if subject:
+            query = query.filter(tutors.subject == subject)
+
+        return query.all()
+
+def get_tutor(id):
+    with Session(engine) as session:
+        return session.query(tutors).filter(tutors.id == id).first()
+
+def get_all_tutors(subject):
     session = Session(engine)
     return session.query(tutors).all()
+
+def get_tutor_by_roll_subject(roll_no, subject):
+    with Session(engine) as session:
+        return session.query(tutors).filter(
+            tutors.roll_no == roll_no,
+            tutors.subject == subject
+        ).first()
 
 def add_session(tutor_id, student_roll_no, topic, session_date):
     with Session(engine) as session:
@@ -61,5 +77,3 @@ def add_rating(session_id, rating):
         if session_to_update:
             session_to_update.ratings = rating
             session.commit()           
-
-
