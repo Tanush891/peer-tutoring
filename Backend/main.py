@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import FastAPI, HTTPException 
 import functions
@@ -11,7 +11,7 @@ def hello():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins = ["http ://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods = ["*"],
     allow_headers = ["*"],
 )
@@ -67,6 +67,107 @@ def add_tutor(roll_no, name, subject):
         subject=subject
     )
 
+
+@app.post("/sessions")
+def request_session(
+    tutor_id: int,
+    student_roll_no: int,
+    topic: str,
+    session_date: date
+):
+    if not topic.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Topic is required."
+        )
+
+    if session_date < date.today():
+        raise HTTPException(
+            status_code=422,
+            detail="Session date cannot be in the past."
+        )
+
+    tutor = functions.get_tutor(id=tutor_id)
+    if tutor is None:
+        raise HTTPException(status_code=404, detail="Tutor not found.")
+
+    if tutor.availability != "available":
+        raise HTTPException(
+            status_code=400,
+            detail="This tutor is away right now."
+        )
+
+    if tutor.roll_no == student_roll_no:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot request a session with yourself."
+        )
+
+    for existing_session in functions.get_sessions():
+        if (
+            existing_session.tutor_id == tutor_id
+            and existing_session.student_roll_no == student_roll_no
+            and existing_session.status in ["requested", "accepted"]
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="You already have a requested or accepted session with this tutor."
+            )
+
+    session_datetime = datetime.combine(session_date, datetime.min.time())
+
+    new_session_id = functions.add_session(
+        tutor_id=tutor_id,
+        student_roll_no=student_roll_no,
+        topic=topic,
+        session_date=session_datetime
+    )
+
+    return {
+        "message": "Session requested successfully.",
+        "id": new_session_id,
+        "status": "requested"
+    }
+
+
+@app.patch("/sessions/{session_id}/decision")
+def decide_session(session_id: int, status: str):
+    if status not in ["accepted", "rejected"]:
+        raise HTTPException(
+            status_code=422,
+            detail="Status must be accepted or rejected."
+        )
+
+    session_record = functions.get_session(id=session_id)
+    if session_record is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    if session_record.status != "requested":
+        raise HTTPException(
+            status_code=400,
+            detail="This session is no longer awaiting a decision."
+        )
+
+    if status == "accepted":
+        accepted_on_date = [
+            item for item in functions.get_sessions()
+            if item.tutor_id == session_record.tutor_id
+            and item.session_date.date() == session_record.session_date.date()
+            and item.status == "accepted"
+        ]
+
+        if len(accepted_on_date) >= 3:
+            raise HTTPException(
+                status_code=400,
+                detail="Tutor already has three accepted sessions on that date."
+            )
+
+    return functions.update_session_status(
+        session_id=session_id,
+        new_status=status
+    )
+
+
 @app.patch("/tutors/{tutor_id}")
 def update_availability(tutor_id: int, available: int):
 
@@ -102,21 +203,8 @@ def get_student_sessions(roll_no):
         raise HTTPException(status_code=422, detail="Roll number is required.")
 
     return functions.get_student_sessions(roll_no=roll_no)
-@app.patch("/sessions/{session_id}/complete")
-def complete_session(session_id):
 
-    if not session_id:
-        raise HTTPException(status_code=422, detail="Session ID is required.")
 
-    session_record = functions.get_session(id=session_id)
 
-    if session_record is None:
-        raise HTTPException(status_code=404, detail="Session not found.")
 
-    if session_record.status != "accepted":
-        raise HTTPException(status_code=400, detail="This session is not accepted.")
 
-    if session_record.session_date.date() > date.today():
-        raise HTTPException(status_code=400, detail="Session date has not arrived yet.")
-
-    return functions.complete_session(session_id=session_id)

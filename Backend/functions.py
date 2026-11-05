@@ -101,6 +101,19 @@ def complete_session(session_id):
             "status": session_record.status,
         }
 
+def update_session_status(session_id, new_status):
+    with Session(engine) as session:
+        session_record = session.query(sessions).filter(sessions.id == session_id).first()
+        if session_record is None:
+            return None
+
+        session_record.status = new_status
+        session.commit()
+        return {
+            "id": session_record.id,
+            "status": session_record.status,
+        }
+
 def get_tutor_requests(tutor_id):
     with Session(engine) as session:
         return (
