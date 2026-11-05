@@ -66,7 +66,7 @@ def add_tutor(roll_no, name, subject):
     )
 
 @app.patch("/tutors/{tutor_id}")
-def update_availability(tutor_id, available):
+def update_availability(tutor_id: int, available: int):
 
     if not tutor_id:
         raise HTTPException(status_code=422, detail="Tutor ID is required.")
@@ -118,5 +118,4 @@ def complete_session(session_id):
         raise HTTPException(status_code=400, detail="Session date has not arrived yet.")
 
     return functions.complete_session(session_id=session_id)
-
 

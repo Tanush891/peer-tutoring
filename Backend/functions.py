@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, Column, create_engine, DateTime
+from sqlalchemy import Integer, String, Column, create_engine, DateTime, inspect, text
 from sqlalchemy.orm import Session, declarative_base
 from datetime import datetime
 
@@ -22,10 +22,20 @@ class sessions(Base):
     student_roll_no = Column(Integer)
     topic = Column(String)
     session_date = Column(DateTime, default=datetime)
+    status = Column(String, default="requested", nullable=False)
     ratings = Column(Integer, nullable=True)
 
 
 Base.metadata.create_all(engine)
+
+def _migrate_session_status():
+    if "status" not in {column["name"] for column in inspect(engine).get_columns("sessions")}:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE sessions ADD COLUMN status VARCHAR NOT NULL DEFAULT 'requested'")
+            )
+
+_migrate_session_status()
 
 def add_tutor(name, roll_no, subject, availability="available"):
     with Session(engine) as session:
@@ -45,6 +55,19 @@ def get_tutors(subject=None):
 def get_tutor(id):
     with Session(engine) as session:
         return session.query(tutors).filter(tutors.id == id).first()
+
+def update_availability(tutor_id, available):
+    with Session(engine) as session:
+        tutor = session.query(tutors).filter(tutors.id == tutor_id).first()
+        if tutor is None:
+            return None
+
+        tutor.availability = "available" if available == 1 else "unavailable"
+        session.commit()
+        return {
+            "id": tutor.id,
+            "availability": tutor.availability,
+        }
 
 def get_all_tutors(subject):
     session = Session(engine)
@@ -66,6 +89,43 @@ def add_session(tutor_id, student_roll_no, topic, session_date):
 def get_sessions():
     session = Session(engine)
     return session.query(sessions).all()
+
+def get_tutor_requests(tutor_id):
+    with Session(engine) as session:
+        return (
+            session.query(sessions)
+            .filter(
+                sessions.tutor_id == tutor_id,
+                sessions.status == "requested",
+            )
+            .order_by(sessions.session_date.asc(), sessions.id.asc())
+            .all()
+        )
+
+def get_student_sessions(roll_no):
+    with Session(engine) as session:
+        student_sessions = (
+            session.query(sessions, tutors.name, tutors.subject)
+            .join(tutors, sessions.tutor_id == tutors.id)
+            .filter(sessions.student_roll_no == roll_no)
+            .order_by(sessions.session_date.asc(), sessions.id.asc())
+            .all()
+        )
+
+        return [
+            {
+                "id": student_session.id,
+                "tutor_id": student_session.tutor_id,
+                "student_roll_no": student_session.student_roll_no,
+                "topic": student_session.topic,
+                "session_date": student_session.session_date,
+                "status": student_session.status,
+                "ratings": student_session.ratings,
+                "tutor_name": tutor_name,
+                "subject": subject,
+            }
+            for student_session, tutor_name, subject in student_sessions
+        ]
 
 def status():
     session = Session(engine)
