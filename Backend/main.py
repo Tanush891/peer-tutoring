@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import FastAPI, HTTPException 
 import functions
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,7 +29,7 @@ def get_tutors(subject=None):
 
 
 @app.get("/tutors/{tutor_id}")
-def get_tutor(tutor_id: int):
+def get_tutor(tutor_id):
     tutor = functions.get_tutor(id=tutor_id)
     if tutor is None:
         raise HTTPException(status_code=404, detail="Tutor not found.")
@@ -106,16 +108,15 @@ def complete_session(session_id):
     if not session_id:
         raise HTTPException(status_code=422, detail="Session ID is required.")
 
-    Session = functions.get_session(id=session_id)
+    session_record = functions.get_session(id=session_id)
 
-    if Session is None:
+    if session_record is None:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    if Session["status"] != "accepted":
+    if session_record.status != "accepted":
         raise HTTPException(status_code=400, detail="This session is not accepted.")
 
-    if Session["session_date"] > str(date.today()):
+    if session_record.session_date.date() > date.today():
         raise HTTPException(status_code=400, detail="Session date has not arrived yet.")
 
     return functions.complete_session(session_id=session_id)
-
